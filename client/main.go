@@ -5,46 +5,57 @@ import (
 	"time"
 	"log"
 	"../conn"
+	"os"
 )
 
 var (
-	remoteAddress = "127.0.0.1:9991"
+	publicAddress = "127.0.0.1:9991"
 	localAddress  = "127.0.0.1:22"
 )
 
 func main() {
-	// connect to the server
-	remoteConn, err := net.Dial("tcp", remoteAddress)
-	if err != nil {
-		log.Printf("dial remoteAddress %v error: %v\n", remoteAddress, err)
-	}
-	log.Printf("dial remoteAddress %v \n", remoteAddress)
 
-	// receive the notification from server
-	//var sz int64
-	//err = binary.Read(remoteConn, binary.LittleEndian, &sz)
-	//if err != nil {
-	//	log.Printf("read from remoteAddress %v error: %v\n", remoteAddress, err)
-	//}
-	//log.Printf("Reading message with length from remoteAddress %v : %d", remoteAddress, sz)
-	//buffer := make([]byte, sz)
-	//_, err = remoteConn.Read(buffer)
-	//if err != nil {
-	//	log.Printf("read from remoteAddress %v error: %v", remoteAddress, err)
-	//}
-	//log.Printf("Read message %v", buffer)
+	pubConnCh := make(chan net.Conn)
+	okCh := make(chan interface{})
 
-	// start transformation
-	//if buffer[0] == 1 {
-	// connect to  the local (behind-nat) server
-	localConn, err := net.Dial("tcp", localAddress)
-	if err != nil {
-		log.Printf("dial localAddress %v: %v error\n", localAddress, err)
+	// connect to the server, and put the conn to the pubConnCh
+	pubConnGeter := func() {
+		publicConn, err := net.Dial("tcp", publicAddress)
+		if err != nil {
+			log.Printf("dial publicAddress %v error: %v\n", publicAddress, err)
+			os.Exit(0)
+		}
+		log.Printf("dial publicAddress %v \n", publicAddress)
+		pubConnCh <- publicConn
 	}
-	log.Printf("dial localAddress %v\n", localAddress)
-	// transfer the data between server and the local network
-	conn.Join(localConn, remoteConn)
-	log.Printf("join ok!\n")
+	go pubConnGeter()
+	go func() {
+		for {
+			// get the publicConn from pubConnCh
+			publicConn := <-pubConnCh
+
+			// get the localConn
+			localConn, err := net.Dial("tcp", localAddress)
+			if err != nil {
+				log.Printf("dial localAddress %v: %v error\n", localAddress, err)
+				return
+			}
+			log.Printf("dial localAddress %v\n", localAddress)
+
+			// transfer the data between server and the local network
+			conn.Join(localConn, publicConn)
+			log.Printf("join ok!\n")
+			okCh <- 1
+		}
+	}()
+
+	// if join ok, reconnect the public server
+	go func() {
+		for {
+			<-okCh
+			pubConnGeter()
+		}
+	}()
 	time.Sleep(10 * time.Minute)
-	//}
+
 }
