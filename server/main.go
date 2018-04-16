@@ -8,61 +8,64 @@ import (
 )
 
 var (
-	proxyAddress  = "127.0.0.1:9991"
-	publicAddress = "127.0.0.1:9992"
+	// listen for the client, wait for the control connection
+	// TODO: separate the cltConn and the pxyConn
+	ctlAddr = "127.0.0.1:9991"
+	// listen the request from the public network
+	pubAddr = "127.0.0.1:9992"
 )
 
 func main() {
-	pxyConnCh := make(chan net.Conn, 0)
+	ctlConnCh := make(chan net.Conn, 0)
 	pubConnCh := make(chan net.Conn, 0)
 
 	// listen the client connection
-	proxyListener, err := net.Listen("tcp", proxyAddress)
+	ctlListener, err := net.Listen("tcp", ctlAddr)
 	if err != nil {
-		log.Printf("listen proxyAddress %v error: %v\n", proxyAddress, err)
+		log.Printf("listen ctlAddr %v error: %v\n", ctlAddr, err)
 		return
 	}
-	log.Printf("start listen proxyAddress %v\n", proxyAddress)
+	log.Printf("start listen ctlAddr %v\n", ctlAddr)
 	// get the proxyConn
 	go func() {
 		for {
-			proxyConn, err := proxyListener.Accept()
+			ctlConn, err := ctlListener.Accept()
 			if err != nil {
-				log.Printf("accept proxyAddress  %v error: %v", proxyAddress, err)
+				log.Printf("accept ctlAddr  %v error: %v", ctlAddr, err)
 			}
-			log.Printf("accept proxyAddress %v\n", proxyAddress)
-			pxyConnCh <- proxyConn
+			log.Printf("accept ctlAddr %v\n", ctlAddr)
+			ctlConnCh <- ctlConn
 		}
 	}()
 
 	// listen the public connection
-	publicListener, err := net.Listen("tcp", "127.0.0.1:9992")
+	pubListener, err := net.Listen("tcp", pubAddr)
 	if err != nil {
-		log.Printf("listen publicAddress %v error: %v\n", publicAddress, err)
+		log.Printf("listen pubAddr %v error: %v\n", pubAddr, err)
 		return
 	}
-	log.Printf("start listen publicAddress %v\n", publicAddress)
+	log.Printf("start listen pubAddr %v\n", pubAddr)
 
-	// get the publicConn
+	// get the pubConn
 	go func() {
 		for {
-			publicConn, err := publicListener.Accept()
+			pubConn, err := pubListener.Accept()
 			if err != nil {
-				log.Printf("accept publicAddress  %v error: %v\n", publicAddress, err)
+				log.Printf("accept pubAddr  %v error: %v\n", pubAddr, err)
 			}
-			log.Printf("accept publicAddress %v\n", publicAddress)
-			pubConnCh <- publicConn
+			log.Printf("accept pubAddr %v\n", pubAddr)
+			pubConnCh <- pubConn
 		}
 	}()
 
 	// join the pxyConn and pubConn
 	go func() {
 		for {
-			proxyConn := <-pxyConnCh
-			publicConn := <-pubConnCh
+			ctlConn := <-ctlConnCh
+			pubConn := <-pubConnCh
 
 			// transfer the data between public network and the client
-			conn.Join(proxyConn, publicConn)
+			conn.Join(ctlConn, pubConn)
 			log.Printf("join ok!\n")
 		}
 	}()

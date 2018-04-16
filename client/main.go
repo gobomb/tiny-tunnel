@@ -9,51 +9,54 @@ import (
 )
 
 var (
-	publicAddress = "127.0.0.1:9991"
-	localAddress  = "127.0.0.1:22"
+	// dial the remote server, establish the control connection
+	// TODO: separate the cltConn and the pxyConn
+	ctlAddr = "127.0.0.1:9991"
+	// dial the local server, establish the local connection
+	locAddr = "127.0.0.1:22"
 )
 
 func main() {
 
-	pubConnCh := make(chan net.Conn)
+	ctlConnCh := make(chan net.Conn)
 	okCh := make(chan interface{})
 
-	// connect to the server, and put the conn to the pubConnCh
-	pubConnGeter := func() {
-		publicConn, err := net.Dial("tcp", publicAddress)
+	// connect to the server, and put the conn to the ctlConnCh
+	ctlConnGetter := func() {
+		ctlConn, err := net.Dial("tcp", ctlAddr)
 		if err != nil {
-			log.Printf("dial publicAddress %v error: %v\n", publicAddress, err)
+			log.Printf("dial ctlAddr %v error: %v\n", ctlAddr, err)
 			os.Exit(0)
 		}
-		log.Printf("dial publicAddress %v \n", publicAddress)
-		pubConnCh <- publicConn
+		log.Printf("dial ctlAddr %v \n", ctlAddr)
+		ctlConnCh <- ctlConn
 	}
-	go pubConnGeter()
+	go ctlConnGetter()
 	go func() {
 		for {
-			// get the publicConn from pubConnCh
-			publicConn := <-pubConnCh
+			// get the ctlConn from ctlConnCh
+			ctlConn := <-ctlConnCh
 
-			// get the localConn
-			localConn, err := net.Dial("tcp", localAddress)
+			// get the locConn
+			locConn, err := net.Dial("tcp", locAddr)
 			if err != nil {
-				log.Printf("dial localAddress %v: %v error\n", localAddress, err)
+				log.Printf("dial locAddr %v: %v error\n", locAddr, err)
 				return
 			}
-			log.Printf("dial localAddress %v\n", localAddress)
+			log.Printf("dial locAddr %v\n", locAddr)
 
 			// transfer the data between server and the local network
-			conn.Join(localConn, publicConn)
+			conn.Join(locConn, ctlConn)
 			log.Printf("join ok!\n")
 			okCh <- 1
 		}
 	}()
 
-	// if join ok, reconnect the public server
+	// if join ok, reconnect the remote server
 	go func() {
 		for {
 			<-okCh
-			pubConnGeter()
+			ctlConnGetter()
 		}
 	}()
 	time.Sleep(10 * time.Minute)
