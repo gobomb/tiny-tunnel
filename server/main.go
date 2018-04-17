@@ -9,15 +9,44 @@ import (
 
 //// TODO: add the cltConn
 var (
+	// listen for the client to establish the control  connection
+	ctlAddr = "127.0.0.1:9000"
 	// listen for the client, wait for the proxy  connection
 	pxyAddr = "127.0.0.1:9991"
 	// listen the request from the public network
 	pubAddr = "127.0.0.1:9992"
+
+	pxyConnCh chan net.Conn
+	pubConnCh chan net.Conn
+	ctlConnCh chan net.Conn
 )
 
+func establishCtlConn(){
+	ctlConnCh = make(chan net.Conn,0)
+	ctlListener, err:=net.Listen("tcp",ctlAddr)
+	if err != nil {
+		log.Printf("listen ctlAddr %v error: %v\n", ctlAddr, err)
+		return
+	}
+	log.Printf("start listen ctlAddr %v\n", ctlAddr)
+	// get the ctlConn
+	go func() {
+		for {
+			ctlConn, err := ctlListener.Accept()
+			if err != nil {
+				log.Printf("accept ctlAddr  %v error: %v", ctlAddr, err)
+			}
+			log.Printf("accept ctlAddr %v\n", ctlAddr)
+			pxyConnCh <- ctlConn
+		}
+	}()
+}
+
+
+
 func main() {
-	pxyConnCh := make(chan net.Conn, 0)
-	pubConnCh := make(chan net.Conn, 0)
+	pxyConnCh = make(chan net.Conn, 0)
+	pubConnCh = make(chan net.Conn, 0)
 
 	// listen the client connection
 	pxyListener, err := net.Listen("tcp", pxyAddr)
