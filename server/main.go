@@ -7,34 +7,34 @@ import (
 	"log"
 )
 
+//// TODO: add the cltConn
 var (
-	// listen for the client, wait for the control connection
-	// TODO: separate the cltConn and the pxyConn
-	ctlAddr = "127.0.0.1:9991"
+	// listen for the client, wait for the proxy  connection
+	pxyAddr = "127.0.0.1:9991"
 	// listen the request from the public network
 	pubAddr = "127.0.0.1:9992"
 )
 
 func main() {
-	ctlConnCh := make(chan net.Conn, 0)
+	pxyConnCh := make(chan net.Conn, 0)
 	pubConnCh := make(chan net.Conn, 0)
 
 	// listen the client connection
-	ctlListener, err := net.Listen("tcp", ctlAddr)
+	pxyListener, err := net.Listen("tcp", pxyAddr)
 	if err != nil {
-		log.Printf("listen ctlAddr %v error: %v\n", ctlAddr, err)
+		log.Printf("listen pxyAddr %v error: %v\n", pxyAddr, err)
 		return
 	}
-	log.Printf("start listen ctlAddr %v\n", ctlAddr)
+	log.Printf("start listen pxyAddr %v\n", pxyAddr)
 	// get the proxyConn
 	go func() {
 		for {
-			ctlConn, err := ctlListener.Accept()
+			pxyConn, err := pxyListener.Accept()
 			if err != nil {
-				log.Printf("accept ctlAddr  %v error: %v", ctlAddr, err)
+				log.Printf("accept pxyAddr  %v error: %v", pxyAddr, err)
 			}
-			log.Printf("accept ctlAddr %v\n", ctlAddr)
-			ctlConnCh <- ctlConn
+			log.Printf("accept pxyAddr %v\n", pxyAddr)
+			pxyConnCh <- pxyConn
 		}
 	}()
 
@@ -61,11 +61,11 @@ func main() {
 	// join the pxyConn and pubConn
 	go func() {
 		for {
-			ctlConn := <-ctlConnCh
+			pxyConn := <-pxyConnCh
 			pubConn := <-pubConnCh
 
 			// transfer the data between public network and the client
-			conn.Join(ctlConn, pubConn)
+			conn.Join(pxyConn, pubConn)
 			log.Printf("join ok!\n")
 		}
 	}()

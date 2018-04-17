@@ -1,15 +1,15 @@
 	
 # the route:
-|----------public network------------|----------nat networt-------------|
+|------------public network----------------|**Nat**|----------nat networt-------------|
 
-**User**--pubAddr--**Server**--ctlAddr--**Client**--locAddr--**LocalServer**
+**User**--pubConn--**Server**--pxyConn--|**Nat**|--**Client**--locConn--**LocalServer**
 
 # server	
-## control address
+## proxy address
 	
-server listen for the client, wait for the control connection
+server listen for the client, wait for the proxy connection
 	
-`ctlAddr = "127.0.0.1:9991"`
+`pxyAddr = "127.0.0.1:9991"`
 	
 ## public address
 
@@ -17,15 +17,13 @@ server listen the request from the public network
 
 `pubAddr = "127.0.0.1:9992"`
 
-# client side
+# client
 
-## control address
+## proxy address
     
-client will dial the remote server, establish the control connection(and proxy connection)
+client will dial the remote server, establish the proxy connection(and proxy connection)
     
-TODO: separate the cltConn and the pxyConn
-
-`ctlAddr = "127.0.0.1:9991"`
+`pxyAddr = "127.0.0.1:9991"`
    
 ## local address
     
